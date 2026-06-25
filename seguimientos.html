@@ -1,0 +1,84 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<title>Kitty Boutique CRM — Seguimientos</title>
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<link rel="stylesheet" href="css/styles.css">
+</head>
+<body>
+  <div class="app-shell">
+    <main class="main">
+      <div class="page-header">
+        <div>
+          <h1>Seguimientos</h1>
+          <p>Clientes potenciales con fecha de seguimiento pendiente o vencida</p>
+        </div>
+      </div>
+      <div class="card">
+        <div id="segui-list"></div>
+      </div>
+    </main>
+  </div>
+
+  <script src="js/auth.js"></script>
+  <script src="js/data.js"></script>
+  <script src="js/sidebar.js"></script>
+  <script>
+    kbRequireAuth();
+    kbRenderSidebar('seguimientos');
+
+    let leads = kbGetLeads();
+
+    function render() {
+      const hoy = new Date();
+      hoy.setHours(0, 0, 0, 0);
+
+      const pendientes = leads
+        .filter(l => l.estado !== 'Vendido' && l.fechaSeguimiento)
+        .map(l => ({ lead: l, fecha: kbParseDate(l.fechaSeguimiento) }))
+        .filter(x => x.fecha)
+        .sort((a, b) => a.fecha - b.fecha);
+
+      const list = document.getElementById('segui-list');
+      if (!pendientes.length) {
+        list.innerHTML = '<p style="color:var(--kb-text-soft);text-align:center;padding:30px;">No hay seguimientos pendientes 🎉</p>';
+        return;
+      }
+
+      list.innerHTML = pendientes.map(({ lead, fecha }) => {
+        const vencido = fecha < hoy;
+        return `
+          <div class="segui-item ${vencido ? 'vencido' : ''}" data-id="${lead.id}">
+            <div>
+              <div class="kc-name" style="font-weight:700;">${lead.cliente} — ${lead.producto}</div>
+              <div class="kc-meta" style="color:var(--kb-text-soft);font-size:12.5px;">
+                ${lead.fuente} · <span class="badge ${kbBadgeClass(lead.estado)}">${lead.estado}</span>
+                · ${kbFormatUSD(lead.valor)}
+              </div>
+            </div>
+            <div style="text-align:right;">
+              <div class="segui-fecha">${lead.fechaSeguimiento} ${vencido ? '⚠️ Vencido' : ''}</div>
+              <button class="btn btn-primary btn-sm" data-mark="${lead.id}" style="margin-top:6px;">
+                Marcar como ${KB_ESTADO_NEXT[lead.estado]}
+              </button>
+            </div>
+          </div>
+        `;
+      }).join('');
+
+      list.querySelectorAll('[data-mark]').forEach(b => b.addEventListener('click', () => {
+        const id = b.dataset.mark;
+        const lead = leads.find(l => l.id === id);
+        const next = KB_ESTADO_NEXT[lead.estado];
+        kbUpdateLead(id, { estado: next });
+        leads = kbGetLeads();
+        kbToast(`Lead marcado como ${next}`, 'success');
+        render();
+      }));
+    }
+
+    render();
+  </script>
+</body>
+</html>

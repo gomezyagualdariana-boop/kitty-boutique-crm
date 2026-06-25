@@ -1,0 +1,141 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<title>Kitty Boutique CRM — Resumen</title>
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<link rel="stylesheet" href="css/styles.css">
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4"></script>
+</head>
+<body>
+  <div class="app-shell">
+    <main class="main">
+      <div class="page-header">
+        <div>
+          <h1>Resumen</h1>
+          <p>Panel general de Kitty Boutique — clientes potenciales, pipeline y ventas</p>
+        </div>
+      </div>
+
+      <div class="kpi-grid">
+        <div class="kpi-card">
+          <div class="kpi-icon">👥</div>
+          <div class="kpi-label">Total Leads</div>
+          <div class="kpi-value" id="kpi-total">0</div>
+        </div>
+        <div class="kpi-card">
+          <div class="kpi-icon">💰</div>
+          <div class="kpi-label">Valor del Pipeline</div>
+          <div class="kpi-value" id="kpi-pipeline">$0</div>
+        </div>
+        <div class="kpi-card">
+          <div class="kpi-icon">✅</div>
+          <div class="kpi-label">Ingresos Ganados</div>
+          <div class="kpi-value" id="kpi-ganado">$0</div>
+        </div>
+        <div class="kpi-card">
+          <div class="kpi-icon">📈</div>
+          <div class="kpi-label">Tasa de Conversión</div>
+          <div class="kpi-value" id="kpi-conv">0%</div>
+        </div>
+      </div>
+
+      <div class="charts-grid">
+        <div class="chart-card">
+          <h3>Embudo por Estado</h3>
+          <div class="chart-box"><canvas id="chart-estado"></canvas></div>
+        </div>
+        <div class="chart-card">
+          <h3>Leads por Fuente / Canal</h3>
+          <div class="chart-box"><canvas id="chart-fuente"></canvas></div>
+        </div>
+        <div class="chart-card">
+          <h3>Leads por Producto</h3>
+          <div class="chart-box"><canvas id="chart-producto"></canvas></div>
+        </div>
+        <div class="chart-card">
+          <h3>Valor Generado por Mes</h3>
+          <div class="chart-box"><canvas id="chart-mes"></canvas></div>
+        </div>
+      </div>
+    </main>
+  </div>
+
+  <script src="js/auth.js"></script>
+  <script src="js/data.js"></script>
+  <script src="js/sidebar.js"></script>
+  <script>
+    kbRequireAuth();
+    kbRenderSidebar('dashboard');
+
+    const leads = kbGetLeads();
+    const total = leads.length;
+    const pipeline = leads.filter(l => l.estado !== 'Vendido').reduce((s, l) => s + Number(l.valor), 0);
+    const ganado = leads.filter(l => l.estado === 'Vendido').reduce((s, l) => s + Number(l.valor), 0);
+    const vendidos = leads.filter(l => l.estado === 'Vendido').length;
+    const conv = total ? Math.round((vendidos / total) * 1000) / 10 : 0;
+
+    document.getElementById('kpi-total').textContent = total;
+    document.getElementById('kpi-pipeline').textContent = kbFormatUSD(pipeline);
+    document.getElementById('kpi-ganado').textContent = kbFormatUSD(ganado);
+    document.getElementById('kpi-conv').textContent = conv + '%';
+
+    function countBy(arr, key) {
+      const m = {};
+      arr.forEach(l => { m[l[key]] = (m[l[key]] || 0) + 1; });
+      return m;
+    }
+    function sumBy(arr, key, valKey) {
+      const m = {};
+      arr.forEach(l => { m[l[key]] = (m[l[key]] || 0) + Number(l[valKey]); });
+      return m;
+    }
+
+    const PALETTE = ['#e91e8c', '#ffb6d5', '#c4126f', '#ff8fc1', '#a8005c', '#ffd6e8', '#d6336c', '#ff5fa2'];
+
+    // Embudo por estado (DONA)
+    const estadoCounts = countBy(leads, 'estado');
+    new Chart(document.getElementById('chart-estado'), {
+      type: 'doughnut',
+      data: {
+        labels: KB_ESTADOS,
+        datasets: [{ data: KB_ESTADOS.map(e => estadoCounts[e] || 0), backgroundColor: PALETTE }]
+      },
+      options: { maintainAspectRatio: false, plugins: { legend: { position: 'bottom', labels: { boxWidth: 12, font: { size: 11 } } } } }
+    });
+
+    // Fuente (barras)
+    const fuenteCounts = countBy(leads, 'fuente');
+    new Chart(document.getElementById('chart-fuente'), {
+      type: 'bar',
+      data: {
+        labels: KB_FUENTES,
+        datasets: [{ label: 'Leads', data: KB_FUENTES.map(f => fuenteCounts[f] || 0), backgroundColor: '#e91e8c', borderRadius: 6 }]
+      },
+      options: { maintainAspectRatio: false, plugins: { legend: { display: false } }, scales: { y: { beginAtZero: true } } }
+    });
+
+    // Producto (dona)
+    const productoCounts = countBy(leads, 'producto');
+    new Chart(document.getElementById('chart-producto'), {
+      type: 'doughnut',
+      data: {
+        labels: KB_PRODUCTOS,
+        datasets: [{ data: KB_PRODUCTOS.map(p => productoCounts[p] || 0), backgroundColor: PALETTE }]
+      },
+      options: { maintainAspectRatio: false, plugins: { legend: { position: 'bottom', labels: { boxWidth: 10, font: { size: 10 } } } } }
+    });
+
+    // Valor por mes (barras)
+    const mesSums = sumBy(leads, 'mes', 'valor');
+    new Chart(document.getElementById('chart-mes'), {
+      type: 'bar',
+      data: {
+        labels: KB_MESES,
+        datasets: [{ label: 'Valor USD', data: KB_MESES.map(m => Math.round((mesSums[m] || 0) * 100) / 100), backgroundColor: '#c4126f', borderRadius: 6 }]
+      },
+      options: { maintainAspectRatio: false, plugins: { legend: { display: false } }, scales: { y: { beginAtZero: true } } }
+    });
+  </script>
+</body>
+</html>

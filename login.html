@@ -1,0 +1,58 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<title>Kitty Boutique CRM — Iniciar sesión</title>
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<link rel="stylesheet" href="css/styles.css">
+</head>
+<body>
+  <div class="login-wrap">
+    <div class="login-card">
+      <img src="assets/logo.png" alt="Kitty Boutique"
+           onerror="this.onerror=null;this.outerHTML='<svg width=200 height=70 viewBox=\'0 0 200 70\'><circle cx=35 cy=35 r=32 fill=%23ffd6e8 stroke=%23e91e8c stroke-width=2/><text x=35 y=42 font-size=24 text-anchor=middle fill=%23e91e8c font-family=Georgia>KB</text><text x=78 y=32 font-size=18 fill=%23e91e8c font-weight=bold font-family=Segoe UI>KITTY</text><text x=78 y=54 font-size=14 fill=%233a2a33 font-family=Segoe UI>BOUTIQUE</text></svg>'">
+      <h1>Kitty Boutique CRM</h1>
+      <p class="sub">Ingresa tus credenciales para continuar</p>
+
+      <div class="login-error" id="login-error">Usuario o contraseña incorrectos.</div>
+
+      <form id="login-form">
+        <div class="form-field">
+          <label>Usuario</label>
+          <input type="text" id="login-user" autocomplete="username" required>
+        </div>
+        <div class="form-field">
+          <label>Contraseña</label>
+          <input type="password" id="login-pass" autocomplete="current-password" required>
+        </div>
+        <button type="submit" class="btn btn-primary">Iniciar sesión</button>
+      </form>
+
+      <div class="login-hint">
+        Demo: usuario <b>admin</b> / contraseña <b>kitty2026</b>.<br>
+        Esta es una protección de demostración local (SHA-256 + sessionStorage),
+        no seguridad de producción multiusuario.
+      </div>
+    </div>
+  </div>
+
+  <script src="js/auth.js"></script>
+  <script>
+    if (kbIsLoggedIn()) { window.location.href = 'dashboard.html'; }
+
+    document.getElementById('login-form').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const user = document.getElementById('login-user').value.trim();
+      const pass = document.getElementById('login-pass').value;
+      const errBox = document.getElementById('login-error');
+      const hash = await kbSha256(pass);
+      if (user === KB_USER && hash === KB_PASS_HASH) {
+        sessionStorage.setItem(KB_SESSION_KEY, '1');
+        window.location.href = 'dashboard.html';
+      } else {
+        errBox.classList.add('show');
+      }
+    });
+  </script>
+</body>
+</html>

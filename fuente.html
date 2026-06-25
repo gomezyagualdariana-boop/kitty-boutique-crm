@@ -1,0 +1,70 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<title>Kitty Boutique CRM — Fuente / Canal</title>
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<link rel="stylesheet" href="css/styles.css">
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4"></script>
+</head>
+<body>
+  <div class="app-shell">
+    <main class="main">
+      <div class="page-header">
+        <div>
+          <h1>Fuente / Canal</h1>
+          <p>Desempeño de cada canal de captación de clientes potenciales</p>
+        </div>
+      </div>
+
+      <div class="fuente-grid" id="fuente-grid"></div>
+
+      <div class="chart-card">
+        <h3>Comparativo de Valor Ganado por Fuente</h3>
+        <div class="chart-box"><canvas id="chart-fuente-cmp"></canvas></div>
+      </div>
+    </main>
+  </div>
+
+  <script src="js/auth.js"></script>
+  <script src="js/data.js"></script>
+  <script src="js/sidebar.js"></script>
+  <script>
+    kbRequireAuth();
+    kbRenderSidebar('fuente');
+
+    const leads = kbGetLeads();
+    const grid = document.getElementById('fuente-grid');
+
+    const stats = KB_FUENTES.map(fuente => {
+      const items = leads.filter(l => l.fuente === fuente);
+      const ganados = items.filter(l => l.estado === 'Vendido');
+      const valorGanado = ganados.reduce((s, l) => s + Number(l.valor), 0);
+      const conv = items.length ? Math.round((ganados.length / items.length) * 1000) / 10 : 0;
+      return { fuente, cantidad: items.length, ganados: ganados.length, valorGanado, conv };
+    });
+
+    stats.forEach(s => {
+      const card = document.createElement('div');
+      card.className = 'card fuente-card';
+      card.innerHTML = `
+        <div class="fuente-title">${s.fuente}</div>
+        <div class="fuente-row"><span>Cantidad</span><b>${s.cantidad}</b></div>
+        <div class="fuente-row"><span>Ganados</span><b>${s.ganados}</b></div>
+        <div class="fuente-row"><span>Valor ganado</span><b>${kbFormatUSD(s.valorGanado)}</b></div>
+        <div class="fuente-row"><span>Tasa de conversión</span><b>${s.conv}%</b></div>
+      `;
+      grid.appendChild(card);
+    });
+
+    new Chart(document.getElementById('chart-fuente-cmp'), {
+      type: 'bar',
+      data: {
+        labels: stats.map(s => s.fuente),
+        datasets: [{ label: 'Valor ganado (USD)', data: stats.map(s => Math.round(s.valorGanado * 100) / 100), backgroundColor: '#e91e8c', borderRadius: 6 }]
+      },
+      options: { maintainAspectRatio: false, plugins: { legend: { display: false } }, scales: { y: { beginAtZero: true } } }
+    });
+  </script>
+</body>
+</html>

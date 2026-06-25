@@ -1,0 +1,59 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<title>Kitty Boutique CRM — Pipeline</title>
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<link rel="stylesheet" href="css/styles.css">
+</head>
+<body>
+  <div class="app-shell">
+    <main class="main">
+      <div class="page-header">
+        <div>
+          <h1>Pipeline</h1>
+          <p>Tablero por etapa del trato — cantidad y valor por columna</p>
+        </div>
+      </div>
+      <div class="kanban" id="kanban"></div>
+    </main>
+  </div>
+
+  <script src="js/auth.js"></script>
+  <script src="js/data.js"></script>
+  <script src="js/sidebar.js"></script>
+  <script>
+    kbRequireAuth();
+    kbRenderSidebar('pipeline');
+
+    const leads = kbGetLeads();
+    const kanban = document.getElementById('kanban');
+
+    KB_ESTADOS.forEach(estado => {
+      const items = leads.filter(l => l.estado === estado);
+      const valor = items.reduce((s, l) => s + Number(l.valor), 0);
+
+      const col = document.createElement('div');
+      col.className = 'kanban-col';
+      col.innerHTML = `
+        <h3>${estado} <span style="background:var(--kb-fuxia);color:#fff;border-radius:999px;padding:2px 9px;font-size:11px;">${items.length}</span></h3>
+        <div class="col-sub">Subtotal: ${kbFormatUSD(valor)}</div>
+        <div class="col-cards"></div>
+      `;
+      const cardsWrap = col.querySelector('.col-cards');
+      items.forEach(l => {
+        const card = document.createElement('div');
+        card.className = 'kanban-card';
+        card.innerHTML = `
+          <div class="kc-name">${l.cliente}</div>
+          <div class="kc-meta">${l.producto} · ${l.fuente}</div>
+          <div class="kc-meta">Prioridad: ${l.prioridad}</div>
+          <div class="kc-val">${kbFormatUSD(l.valor)}</div>
+        `;
+        cardsWrap.appendChild(card);
+      });
+      kanban.appendChild(col);
+    });
+  </script>
+</body>
+</html>

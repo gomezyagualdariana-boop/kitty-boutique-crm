@@ -1,0 +1,277 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<title>Kitty Boutique CRM — Leads</title>
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<link rel="stylesheet" href="css/styles.css">
+</head>
+<body>
+  <div class="app-shell">
+    <main class="main">
+      <div class="page-header">
+        <div>
+          <h1>Leads</h1>
+          <p>Gestión completa de clientes potenciales</p>
+        </div>
+        <button class="btn btn-primary" id="btn-new-lead">+ Nuevo Lead</button>
+      </div>
+
+      <div class="filters-bar card">
+        <input type="text" id="f-search" placeholder="Buscar por cliente, producto o notas...">
+        <select id="f-estado"><option value="">Todos los estados</option></select>
+        <select id="f-fuente"><option value="">Todas las fuentes</option></select>
+        <select id="f-producto"><option value="">Todos los productos</option></select>
+        <select id="f-prioridad"><option value="">Todas las prioridades</option></select>
+      </div>
+
+      <div class="card">
+        <table class="kb-table">
+          <thead>
+            <tr>
+              <th>Fecha</th><th>Cliente</th><th>Producto</th><th>Valor</th>
+              <th>Estado</th><th>Fuente</th><th>Prioridad</th><th>Seguimiento</th><th>Acciones</th>
+            </tr>
+          </thead>
+          <tbody id="leads-tbody"></tbody>
+        </table>
+        <div class="pagination" id="pagination"></div>
+      </div>
+    </main>
+  </div>
+
+  <!-- Modal alta/edición -->
+  <div class="modal-overlay hidden" id="lead-modal">
+    <div class="modal-box">
+      <h2 id="modal-title">Nuevo Lead</h2>
+      <p class="modal-sub">Completa los datos del cliente potencial</p>
+      <form id="lead-form">
+        <input type="hidden" id="f-id">
+        <div class="form-grid">
+          <div class="form-field">
+            <label>Fecha</label>
+            <input type="text" id="f-fecha" placeholder="dd/mm/yyyy" required>
+          </div>
+          <div class="form-field">
+            <label>Cliente</label>
+            <input type="text" id="f-cliente" required>
+          </div>
+          <div class="form-field">
+            <label>Empresa</label>
+            <input type="text" id="f-empresa" required>
+          </div>
+          <div class="form-field">
+            <label>Producto</label>
+            <select id="f-producto-in" required></select>
+          </div>
+          <div class="form-field">
+            <label>Valor USD</label>
+            <input type="number" step="0.01" id="f-valor" required>
+          </div>
+          <div class="form-field">
+            <label>Estado</label>
+            <select id="f-estado-in" required></select>
+          </div>
+          <div class="form-field">
+            <label>Fuente</label>
+            <select id="f-fuente-in" required></select>
+          </div>
+          <div class="form-field">
+            <label>Prioridad</label>
+            <select id="f-prioridad-in" required></select>
+          </div>
+          <div class="form-field">
+            <label>Mes</label>
+            <select id="f-mes-in" required></select>
+          </div>
+          <div class="form-field">
+            <label>Fecha Seguimiento</label>
+            <input type="text" id="f-fecha-seg" placeholder="dd/mm/yyyy" required>
+          </div>
+          <div class="form-field full">
+            <label>Notas</label>
+            <textarea id="f-notas" rows="3"></textarea>
+          </div>
+        </div>
+        <div class="modal-actions">
+          <button type="button" class="btn btn-outline" id="modal-cancel">Cancelar</button>
+          <button type="submit" class="btn btn-primary">Guardar</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- Modal confirmación borrar -->
+  <div class="modal-overlay hidden" id="confirm-modal">
+    <div class="modal-box confirm">
+      <h2>¿Eliminar lead?</h2>
+      <p class="modal-sub">Esta acción no se puede deshacer.</p>
+      <div class="modal-actions">
+        <button class="btn btn-outline" id="confirm-cancel">Cancelar</button>
+        <button class="btn btn-danger" id="confirm-ok">Eliminar</button>
+      </div>
+    </div>
+  </div>
+
+  <script src="js/auth.js"></script>
+  <script src="js/data.js"></script>
+  <script src="js/sidebar.js"></script>
+  <script>
+    kbRequireAuth();
+    kbRenderSidebar('leads');
+
+    let leads = kbGetLeads();
+    let filtered = leads.slice();
+    let page = 1;
+    const PAGE_SIZE = 10;
+    let deleteId = null;
+
+    function fillSelect(id, options, withEmpty) {
+      const el = document.getElementById(id);
+      el.innerHTML = (withEmpty ? '<option value="">' + withEmpty + '</option>' : '') +
+        options.map(o => `<option value="${o}">${o}</option>`).join('');
+    }
+    fillSelect('f-estado', KB_ESTADOS, 'Todos los estados');
+    fillSelect('f-fuente', KB_FUENTES, 'Todas las fuentes');
+    fillSelect('f-producto', KB_PRODUCTOS, 'Todos los productos');
+    fillSelect('f-prioridad', KB_PRIORIDADES, 'Todas las prioridades');
+    fillSelect('f-producto-in', KB_PRODUCTOS);
+    fillSelect('f-estado-in', KB_ESTADOS);
+    fillSelect('f-fuente-in', KB_FUENTES);
+    fillSelect('f-prioridad-in', KB_PRIORIDADES);
+    fillSelect('f-mes-in', KB_MESES);
+
+    function applyFilters() {
+      const q = document.getElementById('f-search').value.toLowerCase().trim();
+      const fe = document.getElementById('f-estado').value;
+      const ff = document.getElementById('f-fuente').value;
+      const fp = document.getElementById('f-producto').value;
+      const fpr = document.getElementById('f-prioridad').value;
+      filtered = leads.filter(l => {
+        if (q && !(l.cliente.toLowerCase().includes(q) || l.producto.toLowerCase().includes(q) || (l.notas || '').toLowerCase().includes(q))) return false;
+        if (fe && l.estado !== fe) return false;
+        if (ff && l.fuente !== ff) return false;
+        if (fp && l.producto !== fp) return false;
+        if (fpr && l.prioridad !== fpr) return false;
+        return true;
+      });
+      page = 1;
+      render();
+    }
+    ['f-search', 'f-estado', 'f-fuente', 'f-producto', 'f-prioridad'].forEach(id => {
+      document.getElementById(id).addEventListener('input', applyFilters);
+    });
+
+    function render() {
+      const tbody = document.getElementById('leads-tbody');
+      const start = (page - 1) * PAGE_SIZE;
+      const pageItems = filtered.slice(start, start + PAGE_SIZE);
+      tbody.innerHTML = pageItems.map(l => `
+        <tr>
+          <td>${l.fecha}</td>
+          <td>${l.cliente}</td>
+          <td>${l.producto}</td>
+          <td>${kbFormatUSD(l.valor)}</td>
+          <td><span class="badge ${kbBadgeClass(l.estado)}">${l.estado}</span></td>
+          <td>${l.fuente}</td>
+          <td><span class="badge badge-prio-${l.prioridad}">${l.prioridad}</span></td>
+          <td>${l.fechaSeguimiento}</td>
+          <td>
+            <button class="btn btn-outline btn-sm" data-edit="${l.id}">✏️</button>
+            <button class="btn btn-danger btn-sm" data-del="${l.id}">🗑️</button>
+          </td>
+        </tr>
+      `).join('') || '<tr><td colspan="9" style="text-align:center;color:var(--kb-text-soft);">Sin resultados</td></tr>';
+
+      renderPagination();
+
+      tbody.querySelectorAll('[data-edit]').forEach(b => b.addEventListener('click', () => openEdit(b.dataset.edit)));
+      tbody.querySelectorAll('[data-del]').forEach(b => b.addEventListener('click', () => openDelete(b.dataset.del)));
+    }
+
+    function renderPagination() {
+      const totalPages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
+      const pag = document.getElementById('pagination');
+      let html = '';
+      for (let i = 1; i <= totalPages; i++) {
+        html += `<button class="${i === page ? 'active' : ''}" data-page="${i}">${i}</button>`;
+      }
+      pag.innerHTML = html;
+      pag.querySelectorAll('[data-page]').forEach(b => b.addEventListener('click', () => { page = Number(b.dataset.page); render(); }));
+    }
+
+    function openNew() {
+      document.getElementById('modal-title').textContent = 'Nuevo Lead';
+      document.getElementById('lead-form').reset();
+      document.getElementById('f-id').value = '';
+      document.getElementById('f-empresa').value = KB_EMPRESA;
+      document.getElementById('lead-modal').classList.remove('hidden');
+    }
+
+    function openEdit(id) {
+      const l = leads.find(x => x.id === id);
+      if (!l) return;
+      document.getElementById('modal-title').textContent = 'Editar Lead';
+      document.getElementById('f-id').value = l.id;
+      document.getElementById('f-fecha').value = l.fecha;
+      document.getElementById('f-cliente').value = l.cliente;
+      document.getElementById('f-empresa').value = l.empresa;
+      document.getElementById('f-producto-in').value = l.producto;
+      document.getElementById('f-valor').value = l.valor;
+      document.getElementById('f-estado-in').value = l.estado;
+      document.getElementById('f-fuente-in').value = l.fuente;
+      document.getElementById('f-prioridad-in').value = l.prioridad;
+      document.getElementById('f-mes-in').value = l.mes;
+      document.getElementById('f-fecha-seg').value = l.fechaSeguimiento;
+      document.getElementById('f-notas').value = l.notas || '';
+      document.getElementById('lead-modal').classList.remove('hidden');
+    }
+
+    document.getElementById('btn-new-lead').addEventListener('click', openNew);
+    document.getElementById('modal-cancel').addEventListener('click', () => document.getElementById('lead-modal').classList.add('hidden'));
+
+    document.getElementById('lead-form').addEventListener('submit', (e) => {
+      e.preventDefault();
+      const id = document.getElementById('f-id').value;
+      const data = {
+        fecha: document.getElementById('f-fecha').value,
+        cliente: document.getElementById('f-cliente').value,
+        empresa: document.getElementById('f-empresa').value,
+        producto: document.getElementById('f-producto-in').value,
+        valor: parseFloat(document.getElementById('f-valor').value),
+        estado: document.getElementById('f-estado-in').value,
+        fuente: document.getElementById('f-fuente-in').value,
+        prioridad: document.getElementById('f-prioridad-in').value,
+        mes: document.getElementById('f-mes-in').value,
+        fechaSeguimiento: document.getElementById('f-fecha-seg').value,
+        notas: document.getElementById('f-notas').value
+      };
+      if (id) {
+        kbUpdateLead(id, data);
+        kbToast('Lead actualizado', 'success');
+      } else {
+        kbAddLead(data);
+        kbToast('Lead creado', 'success');
+      }
+      leads = kbGetLeads();
+      document.getElementById('lead-modal').classList.add('hidden');
+      applyFilters();
+    });
+
+    function openDelete(id) {
+      deleteId = id;
+      document.getElementById('confirm-modal').classList.remove('hidden');
+    }
+    document.getElementById('confirm-cancel').addEventListener('click', () => document.getElementById('confirm-modal').classList.add('hidden'));
+    document.getElementById('confirm-ok').addEventListener('click', () => {
+      kbDeleteLead(deleteId);
+      leads = kbGetLeads();
+      document.getElementById('confirm-modal').classList.add('hidden');
+      kbToast('Lead eliminado', 'success');
+      applyFilters();
+    });
+
+    render();
+  </script>
+</body>
+</html>
