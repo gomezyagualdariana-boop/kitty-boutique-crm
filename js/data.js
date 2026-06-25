@@ -8,6 +8,34 @@
 const KB_STORAGE_KEY = 'kb_leads_v1';
 const KB_SYNC_URL_KEY = 'kb_sync_url';
 
+// Auto-sincronización pública: si se define una URL aquí, la app intenta
+// traer los datos reales de Google Sheets una vez por sesión de pestaña,
+// para que cualquier dispositivo que abra el sitio vea los mismos datos
+// sin tener que usar el botón "Sincronizar" manualmente.
+// Déjala vacía ('') para que la app use solo datos simulados locales.
+const KB_AUTO_SYNC_URL = 'https://script.google.com/macros/s/AKfycbwjFc68uIuoY3RXe_HsInrgPfmBCvDcX8-eVEdSiflZXugs_1cfV0BCV2gmHgELsL0t/exec';
+const KB_AUTO_SYNC_FLAG_KEY = 'kb_auto_synced_v1';
+
+async function kbBootstrap() {
+  if (!KB_AUTO_SYNC_URL) return;
+  if (sessionStorage.getItem(KB_AUTO_SYNC_FLAG_KEY)) return;
+  try {
+    const res = await fetch(KB_AUTO_SYNC_URL);
+    if (res.ok) {
+      const leads = await res.json();
+      if (Array.isArray(leads) && leads.length) {
+        kbSaveLeads(leads);
+        if (!localStorage.getItem(KB_SYNC_URL_KEY)) {
+          localStorage.setItem(KB_SYNC_URL_KEY, KB_AUTO_SYNC_URL);
+        }
+      }
+    }
+  } catch (e) {
+    // Sin conexión o error de red: seguimos con lo que haya en localStorage.
+  }
+  sessionStorage.setItem(KB_AUTO_SYNC_FLAG_KEY, '1');
+}
+
 const KB_ESTADOS = ['Pendiente', 'Contactada', 'En negociación', 'Apartado', 'Vendido'];
 const KB_ESTADO_NEXT = {
   'Pendiente': 'Contactada',

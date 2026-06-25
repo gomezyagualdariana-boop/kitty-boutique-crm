@@ -120,6 +120,8 @@
     kbRequireAuth();
     kbRenderSidebar('leads');
 
+    (async () => {
+    await kbBootstrap();
     let leads = kbGetLeads();
     let filtered = leads.slice();
     let page = 1;
@@ -272,6 +274,7 @@
     });
 
     render();
+    })();
   </script>
 </body>
 </html>

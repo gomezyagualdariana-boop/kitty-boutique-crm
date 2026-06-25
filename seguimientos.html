@@ -28,6 +28,8 @@
     kbRequireAuth();
     kbRenderSidebar('seguimientos');
 
+    (async () => {
+    await kbBootstrap();
     let leads = kbGetLeads();
 
     function render() {
@@ -79,6 +81,7 @@
     }
 
     render();
+    })();
   </script>
 </body>
 </html>

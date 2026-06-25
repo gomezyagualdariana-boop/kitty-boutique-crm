@@ -68,6 +68,8 @@
     kbRequireAuth();
     kbRenderSidebar('dashboard');
 
+    (async () => {
+    await kbBootstrap();
     const leads = kbGetLeads();
     const total = leads.length;
     const pipeline = leads.filter(l => l.estado !== 'Vendido').reduce((s, l) => s + Number(l.valor), 0);
@@ -136,6 +138,7 @@
       },
       options: { maintainAspectRatio: false, plugins: { legend: { display: false } }, scales: { y: { beginAtZero: true } } }
     });
+    })();
   </script>
 </body>
 </html>
